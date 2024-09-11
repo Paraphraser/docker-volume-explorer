@@ -1,0 +1,49 @@
+---
+
+services:
+
+  test1:
+    container_name: test1
+    build:
+      context: ./context/.
+      args:
+        -  CONTAINER=test1
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - SELF_REPAIR=${SELF_REPAIR:-false}
+    volumes:
+      -           vol1:/internal/vol1  # declared VOLUME in Dockerfile
+      - ./volumes/vol2:/internal/vol2  # declared VOLUME in Dockerfile
+      #                /internal/vol3  # declared VOLUME in Dockerfile
+      -           vol4:/internal/vol4
+      - ./volumes/vol5:/internal/vol5
+      #                /internal/vol6
+      -           vol7:/internal/vol7
+      - ./volumes/vol8:/internal/vol8
+
+  test2:
+    container_name: test2
+    build:
+      context: ./context/.
+      args:
+        - CONTAINER=test2
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - SELF_REPAIR=${SELF_REPAIR:-false}
+    volumes:
+      -           vol1:/internal/vol1  # declared VOLUME in Dockerfile
+      - ./volumes/vol2:/internal/vol2  # declared VOLUME in Dockerfile
+      #                /internal/vol3  # declared VOLUME in Dockerfile
+      -           vol4:/internal/vol4
+      - ./volumes/vol5:/internal/vol5
+      #                /internal/vol6
+      -           vol7:/internal/vol7
+      - ./volumes/vol8:/internal/vol8
+    depends_on:
+      - test1
+volumes:
+  vol1:
+  vol4:
+  vol7:
