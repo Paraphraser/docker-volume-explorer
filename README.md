@@ -1,5 +1,24 @@
 # Docker volume explorer
 
+## contents
+
+- [introduction](#introduction)
+- [run test without self-repair](#runtest1)
+- [run test with self-repair](#runtest2)
+- [performance tests](#perftests)
+- [Scripts](#scripts)
+
+	- [explore bind mounts](#exploreBind)
+	- [explore container mounts](#exploreContainer)
+	- [explore volume mounts](#exploreVolume)
+	- [reset](#resetsh)
+	- [run test with self repair](#runTest)
+	- [show declared volumes](#showVolumes)
+
+
+<a name="introduction"></a>
+## introduction
+
 This repository doesn't "do" anything in a practical sense. It will, however, help you understand the nuances of Docker's *volume* and *bind* mounts.
 
 To use this repository:
@@ -17,7 +36,7 @@ To use this repository:
 	```
 
 <a name="runtest1"></a>
-# test 1
+## test 1 - without self-repair
 
 Run the following command:
 
@@ -33,9 +52,9 @@ The `false` argument passed to `run_test_with_self_repair.sh` disables each cont
 
 Table 1 summarises the basic behaviour of Docker *volume* and *bind mounts* in the absence of self-repair code. 
 
-| <a name="table1"></a>Table 1: Docker volume behaviour - without self-repair |
-|---------|
-|![](./images/mount-without-self-repair.png)|
+| <a name="table1"></a>Table 1: Docker volume behaviour - without self-repair    |
+|--------------------------------------------------------------------------------|
+|![volume behaviour without self-repair](./images/mount-without-self-repair.png) |
 
 Here's an interpretation of the feature combinations in column 1 (aka `vol1`):
 
@@ -89,7 +108,7 @@ $ docker exec test1 tree /internal/vol1
 As you will see in a minute, adding self-repair code to a container cures all of these problems.
 
 <a name="runtest2"></a>
-## test 2
+## test 2 - with self-repair
 
 You can activate the self-repair code by running the command:
 
@@ -105,8 +124,8 @@ Table 2 summarises the basic behaviour of Docker *volume* and *bind mounts* in t
 
 
 | <a name="table2"></a>Table 2: Docker volume behaviour - with self-repair |
-|---------|
-|![](./images/mount-with-self-repair.png)|
+|--------------------------------------------------------------------------|
+|![volume behaviour with self-repair](./images/mount-with-self-repair.png) |
 
 All internal paths are fully populated on each container launch or restart. This is independent of whether the paths are also mentioned in a `volumes:` clause in the service definition.
 
@@ -147,8 +166,41 @@ $ docker exec test1 tree /internal/vol1
 
 The self-repair code has reinstated `vol1.test1-pre-greeting`. In other words, self-repair works irrespective of how an internal path is mapped to the host file system.
 
+<a name="perftests"></a>
+## performance tests
+
+[Docker documentation](https://docs.docker.com/engine/storage/volumes/#when-to-use-volumes) recommends using volume mounts rather than bind mounts. One of the reasons given for making that recommendation is:
+
+> * When your application requires high-performance I/O.
+
+The documentation goes on to say:
+
+> Volumes are often a better choice than writing data directly to a container, because a volume doesn't increase the size of the containers using it. Using a volume is also faster; writing into a container's writable layer requires a storage driver to manage the filesystem. The storage driver provides a union filesystem, using the Linux kernel. This extra abstraction reduces performance as compared to using volumes, which write directly to the host filesystem.
+
+I decided to test those claims. [Figure 1](#figure1) shows the results of running the [`iozone`](https://www.baeldung.com/linux/disk-performance-test) command in the `test1` container. The host OS was a Debian 12.11 guest, on a Proxmox-VE 8.4.1 Debian 12.11 hypervisor, on an Intel Core i7 2.20GHz (old MacBook Pro 11,2). The Y-axis labels are approximations of the longer titles produced by `iozone`.
+
+| <a name="figure1"></a>Figure 1: Performance Comparison : Volume Mounts vs Bind Mounts |
+|---------------------------------------------------------------------------------------|
+|![Volume Mounts vs Bind Mounts](./images/performance-test.png)                         |
+
+I read that as being close to line-ball and not exactly supportive of any claim that the performance of volume mounts is inherently superior to that of bind mounts. I have repeated the test several times with consistent results. Your mileage may vary. If you want to try it for yourself, the relevant commands were:
+
+```
+$ ./reset.sh
+$ ./run_test_with_self_repair.sh true
+$ docker exec test1 iozone -t1 -i0 -i2 -r1k -s1g -F /internal/vol1/testfile
+$ docker exec test1 iozone -t1 -i0 -i2 -r1k -s1g -F /internal/vol2/testfile
+```
+
+There is no particular reason for choosing the `test1` container over `test2`. There is also no particular reason for passing `true` to `run_test_with_self_repair.sh`. The only *intentional* difference is:
+
+* `vol1` in `/internal/vol1/testfile` is a volume mount; while
+* `vol2` in `/internal/vol2/testfile` is a bind mount.
+
+<a name="scripts"></a>
 ## Scripts
 
+<a name="exploreBind"></a>
 ### explore bind mounts
 
 Usage:
@@ -161,6 +213,7 @@ Checks for the existence of `./volumes` then runs:
 $ tree -apug --noreport ./volumes
 ```
 
+<a name="exploreContainer"></a>
 ### explore container mounts
 
 Usage:
@@ -169,6 +222,7 @@ Usage:
 
 Uses `docker exec` to invoke `explore_container_mounts.sh` inside the `test1` and `test2` containers. The script *inside* each container iterates the contents of the `/internal` directory and reports on whether the item is the target of a *Docker bind mount,* plus itemises its content.
 
+<a name="exploreVolume"></a>
 ### explore volume mounts
 
 Usage:
@@ -189,6 +243,7 @@ Performs the following actions:
 * Takes the stack down.
 * Removes all *volume mounts* (named or anonymous) and all *Docker bind mounts.*
 
+<a name="runTest"></a>
 ### run test with self repair
 
 Usage:
@@ -207,6 +262,7 @@ If the argument is:
 * `true`, starts each container with self-repair code enabled.
 * otherwise displays a "usage" statement.
 
+<a name="showVolumes"></a>
 ### show declared volumes
 
 Usage:

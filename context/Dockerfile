@@ -5,7 +5,7 @@ ARG CONTAINER
 ENV CONTAINER=${CONTAINER}
 
 # add useful utilities
-RUN apt update && apt install -y tree tzdata bsdmainutils
+RUN apt update && apt install -y tree tzdata bsdmainutils iozone3
 
 # create and populate vol1..vol6 (but NOT vol7..vol8)
 RUN for V in vol1 vol2 vol3 vol4 vol5 vol6 ; do \
